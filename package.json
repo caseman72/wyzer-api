@@ -1,0 +1,25 @@
+{
+  "name": "wyzer-api",
+  "version": "1.0.0",
+  "description": "Simple Wyze API client",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "node examples/test-all.js",
+    "lint": "eslint index.js lib/*.js examples/*.js",
+    "lint:fix": "eslint --fix index.js lib/*.js examples/*.js"
+  },
+  "keywords": [
+    "wyze",
+    "api",
+    "smart-home"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.2"
+  }
+}
