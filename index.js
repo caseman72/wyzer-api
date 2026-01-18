@@ -19,6 +19,7 @@ class Wyzer {
     this.apiKeyExpires = options.apiKeyExpires || process.env.WYZE_API_KEY_EXPIRES;
     this.authApiKey = options.authApiKey || process.env.WYZE_AUTH_API_KEY;
     this.tokenPath = options.tokenPath || ".";
+    this.quiet = options.quiet || false;
     this.accessToken = null;
     this.refreshToken = null;
     this.userId = null;
@@ -34,6 +35,18 @@ class Wyzer {
     }
   }
 
+  log(message) {
+    if (!this.quiet) console.log(message);
+  }
+
+  warn(message) {
+    if (!this.quiet) console.warn(message);
+  }
+
+  error(message) {
+    console.error(message); // Always show errors
+  }
+
   async login() {
     // Check API key expiry
     this.checkApiKeyExpiry();
@@ -47,13 +60,13 @@ class Wyzer {
         this.accessToken = cached.accessToken;
         this.refreshToken = cached.refreshToken;
         this.userId = decodeJwt(cached.accessToken)?.user_id;
-        console.log("Using cached access token");
+        this.log("Using cached access token");
         return { accessToken: this.accessToken, refreshToken: this.refreshToken, userId: this.userId };
       }
 
       // Access token expired, try refresh token
       if (!isTokenExpired(cached.refreshToken)) {
-        console.log("Access token expired, refreshing...");
+        this.log("Access token expired, refreshing...");
         try {
           this.refreshToken = cached.refreshToken;
           const result = await this.refresh();
@@ -62,16 +75,16 @@ class Wyzer {
           return { accessToken: this.accessToken, refreshToken: this.refreshToken, userId: this.userId };
         }
         catch (err) {
-          console.log("Refresh failed, doing full login:", err.message);
+          this.log("Refresh failed, doing full login:", err.message);
         }
       }
       else {
-        console.log("Refresh token expired, doing full login");
+        this.log("Refresh token expired, doing full login");
       }
     }
 
     // Full login
-    console.log("Logging in...");
+    this.log("Logging in...");
     const result = await login(this.email, this.password, this.keyId, this.apiKey, this.authApiKey, { preHashed: this.preHashed });
     this.accessToken = result.accessToken;
     this.refreshToken = result.refreshToken;
@@ -95,12 +108,12 @@ class Wyzer {
     if (!forceRefresh) {
       const cached = loadDeviceCache(this.tokenPath);
       if (cached) {
-        console.log("Using cached device list");
+        this.log("Using cached device list");
         return cached;
       }
     }
 
-    console.log("Fetching device list from API...");
+    this.log("Fetching device list from API...");
     const devices = await getDeviceList(this.accessToken);
     saveDeviceCache(devices, this.tokenPath);
     return devices;
@@ -140,13 +153,63 @@ class Wyzer {
     return devices.filter(d => d.product_type.toLowerCase() === type.toLowerCase());
   }
 
-  // Plugs
-  async plugOn(deviceMac, deviceModel) {
-    return plugs.turnOn(this.accessToken, deviceMac, deviceModel);
+  // Helper: retry with verification
+  async _retryWithVerify(action, verify, maxAttempts = 3, delayMs = 2000) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      await action();
+      await this._sleep(delayMs);
+      if (await verify()) {
+        return true;
+      }
+      if (attempt < maxAttempts) {
+        this.log(`Verify failed (attempt ${attempt}/${maxAttempts}), retrying...`);
+      }
+    }
+    return false;
   }
 
-  async plugOff(deviceMac, deviceModel) {
-    return plugs.turnOff(this.accessToken, deviceMac, deviceModel);
+  _sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // Plugs
+  // Options: { verify: true, throwOnFail: false, retries: 3 }
+  async plugOn(deviceMac, deviceModel, options = {}) {
+    const { verify = true, throwOnFail = false, retries = 3 } = options;
+
+    if (!verify || retries === 0) {
+      return plugs.turnOn(this.accessToken, deviceMac, deviceModel);
+    }
+
+    const success = await this._retryWithVerify(
+      () => plugs.turnOn(this.accessToken, deviceMac, deviceModel),
+      () => this.isPlugOn(deviceMac, deviceModel),
+      retries
+    );
+
+    if (!success && throwOnFail) {
+      throw new Error(`Failed to turn on plug ${deviceMac} after ${retries} attempts`);
+    }
+    return success;
+  }
+
+  async plugOff(deviceMac, deviceModel, options = {}) {
+    const { verify = true, throwOnFail = false, retries = 3 } = options;
+
+    if (!verify || retries === 0) {
+      return plugs.turnOff(this.accessToken, deviceMac, deviceModel);
+    }
+
+    const success = await this._retryWithVerify(
+      () => plugs.turnOff(this.accessToken, deviceMac, deviceModel),
+      () => this.isPlugOff(deviceMac, deviceModel),
+      retries
+    );
+
+    if (!success && throwOnFail) {
+      throw new Error(`Failed to turn off plug ${deviceMac} after ${retries} attempts`);
+    }
+    return success;
   }
 
   async getPlugState(deviceMac, deviceModel) {
@@ -164,12 +227,43 @@ class Wyzer {
   }
 
   // Wall Switches
-  async switchOn(deviceMac, deviceModel) {
-    return switches.turnOn(this.accessToken, deviceMac, deviceModel);
+  // Options: { verify: true, throwOnFail: false, retries: 3 }
+  async switchOn(deviceMac, deviceModel, options = {}) {
+    const { verify = true, throwOnFail = false, retries = 3 } = options;
+
+    if (!verify || retries === 0) {
+      return switches.turnOn(this.accessToken, deviceMac, deviceModel);
+    }
+
+    const success = await this._retryWithVerify(
+      () => switches.turnOn(this.accessToken, deviceMac, deviceModel),
+      () => this.isSwitchOn(deviceMac),
+      retries
+    );
+
+    if (!success && throwOnFail) {
+      throw new Error(`Failed to turn on switch ${deviceMac} after ${retries} attempts`);
+    }
+    return success;
   }
 
-  async switchOff(deviceMac, deviceModel) {
-    return switches.turnOff(this.accessToken, deviceMac, deviceModel);
+  async switchOff(deviceMac, deviceModel, options = {}) {
+    const { verify = true, throwOnFail = false, retries = 3 } = options;
+
+    if (!verify || retries === 0) {
+      return switches.turnOff(this.accessToken, deviceMac, deviceModel);
+    }
+
+    const success = await this._retryWithVerify(
+      () => switches.turnOff(this.accessToken, deviceMac, deviceModel),
+      () => this.isSwitchOff(deviceMac),
+      retries
+    );
+
+    if (!success && throwOnFail) {
+      throw new Error(`Failed to turn off switch ${deviceMac} after ${retries} attempts`);
+    }
+    return success;
   }
 
   async isSwitchOn(deviceMac) {
@@ -235,10 +329,10 @@ class Wyzer {
     const status = this.getApiKeyStatus();
 
     if (status.isExpired) {
-      console.error("WARNING: Wyze API key has EXPIRED! Renew at https://developer-api-console.wyze.com/");
+      this.error("WARNING: Wyze API key has EXPIRED! Renew at https://developer-api-console.wyze.com/");
     }
     else if (status.isExpiringSoon) {
-      console.warn("WARNING: Wyze API key expires in " + status.daysRemaining + " days. Renew at https://developer-api-console.wyze.com/");
+      this.warn("WARNING: Wyze API key expires in " + status.daysRemaining + " days. Renew at https://developer-api-console.wyze.com/");
     }
 
     return status;
