@@ -149,6 +149,20 @@ class Wyzer {
     return plugs.turnOff(this.accessToken, deviceMac, deviceModel);
   }
 
+  async getPlugState(deviceMac, deviceModel) {
+    return plugs.getState(this.accessToken, deviceMac, deviceModel);
+  }
+
+  async isPlugOn(deviceMac, deviceModel) {
+    const state = await plugs.getState(this.accessToken, deviceMac, deviceModel);
+    return state.switch_state;
+  }
+
+  async isPlugOff(deviceMac, deviceModel) {
+    const state = await plugs.getState(this.accessToken, deviceMac, deviceModel);
+    return !state.switch_state;
+  }
+
   // Wall Switches
   async switchOn(deviceMac, deviceModel) {
     return switches.turnOn(this.accessToken, deviceMac, deviceModel);
@@ -156,6 +170,16 @@ class Wyzer {
 
   async switchOff(deviceMac, deviceModel) {
     return switches.turnOff(this.accessToken, deviceMac, deviceModel);
+  }
+
+  async isSwitchOn(deviceMac) {
+    const state = await switches.getState(this.accessToken, deviceMac);
+    return state["switch-power"];
+  }
+
+  async isSwitchOff(deviceMac) {
+    const state = await switches.getState(this.accessToken, deviceMac);
+    return !state["switch-power"];
   }
 
   async getSwitchState(deviceMac) {
