@@ -103,6 +103,31 @@ class Wyzer {
     return result;
   }
 
+  // Ensure access token is valid, refresh if needed
+  async ensureValidToken() {
+    if (!this.accessToken || isTokenExpired(this.accessToken)) {
+      // Try refresh token first
+      if (this.refreshToken && !isTokenExpired(this.refreshToken)) {
+        this.log("Access token expired, refreshing...");
+        try {
+          await this.refresh();
+          this.userId = decodeJwt(this.accessToken)?.user_id;
+          saveTokens(this.accessToken, this.refreshToken, this.tokenPath);
+          this.log("Token refreshed successfully");
+          return;
+        }
+        catch (err) {
+          this.log("Refresh failed, doing full login: " + err.message);
+        }
+      }
+
+      // Full login required
+      this.log("Token expired, logging in...");
+      await this.login();
+      this.log("Login successful");
+    }
+  }
+
   // Devices (cached)
   async getDevices(forceRefresh = false) {
     if (!forceRefresh) {
@@ -113,9 +138,11 @@ class Wyzer {
       }
     }
 
-    this.log("Fetching device list from API...");
+    await this.ensureValidToken();
+    this.log("Refreshing device cache from API...");
     const devices = await getDeviceList(this.accessToken);
     saveDeviceCache(devices, this.tokenPath);
+    this.log(`Device cache refreshed (${devices.length} devices)`);
     return devices;
   }
 
@@ -175,6 +202,7 @@ class Wyzer {
   // Plugs
   // Options: { verify: true, throwOnFail: false, retries: 3 }
   async plugOn(deviceMac, deviceModel, options = {}) {
+    await this.ensureValidToken();
     const { verify = true, throwOnFail = false, retries = 3 } = options;
 
     if (!verify || retries === 0) {
@@ -194,6 +222,7 @@ class Wyzer {
   }
 
   async plugOff(deviceMac, deviceModel, options = {}) {
+    await this.ensureValidToken();
     const { verify = true, throwOnFail = false, retries = 3 } = options;
 
     if (!verify || retries === 0) {
@@ -213,15 +242,18 @@ class Wyzer {
   }
 
   async getPlugState(deviceMac, deviceModel) {
+    await this.ensureValidToken();
     return plugs.getState(this.accessToken, deviceMac, deviceModel);
   }
 
   async isPlugOn(deviceMac, deviceModel) {
+    await this.ensureValidToken();
     const state = await plugs.getState(this.accessToken, deviceMac, deviceModel);
     return state.switch_state;
   }
 
   async isPlugOff(deviceMac, deviceModel) {
+    await this.ensureValidToken();
     const state = await plugs.getState(this.accessToken, deviceMac, deviceModel);
     return !state.switch_state;
   }
@@ -229,6 +261,7 @@ class Wyzer {
   // Wall Switches
   // Options: { verify: true, throwOnFail: false, retries: 3 }
   async switchOn(deviceMac, deviceModel, options = {}) {
+    await this.ensureValidToken();
     const { verify = true, throwOnFail = false, retries = 3 } = options;
 
     if (!verify || retries === 0) {
@@ -248,6 +281,7 @@ class Wyzer {
   }
 
   async switchOff(deviceMac, deviceModel, options = {}) {
+    await this.ensureValidToken();
     const { verify = true, throwOnFail = false, retries = 3 } = options;
 
     if (!verify || retries === 0) {
@@ -267,37 +301,45 @@ class Wyzer {
   }
 
   async isSwitchOn(deviceMac) {
+    await this.ensureValidToken();
     const state = await switches.getState(this.accessToken, deviceMac);
     return state["switch-power"];
   }
 
   async isSwitchOff(deviceMac) {
+    await this.ensureValidToken();
     const state = await switches.getState(this.accessToken, deviceMac);
     return !state["switch-power"];
   }
 
   async getSwitchState(deviceMac) {
+    await this.ensureValidToken();
     return switches.getState(this.accessToken, deviceMac);
   }
 
   // Thermostat
   async getThermostat(deviceMac) {
+    await this.ensureValidToken();
     return thermostat.getData(this.accessToken, deviceMac);
   }
 
   async setHeatTemp(deviceMac, temp, deviceModel) {
+    await this.ensureValidToken();
     return thermostat.setHeatTemp(this.accessToken, deviceMac, temp, deviceModel);
   }
 
   async setCoolTemp(deviceMac, temp, deviceModel) {
+    await this.ensureValidToken();
     return thermostat.setCoolTemp(this.accessToken, deviceMac, temp, deviceModel);
   }
 
   async setThermostatMode(deviceMac, mode, deviceModel) {
+    await this.ensureValidToken();
     return thermostat.setMode(this.accessToken, deviceMac, mode, deviceModel);
   }
 
   async setFanMode(deviceMac, mode, deviceModel) {
+    await this.ensureValidToken();
     return thermostat.setFanMode(this.accessToken, deviceMac, mode, deviceModel);
   }
 

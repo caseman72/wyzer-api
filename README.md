@@ -42,6 +42,13 @@ await wyze.setThermostatMode(deviceMac, "auto", deviceModel);
 await wyze.setFanMode(deviceMac, "auto", deviceModel);
 ```
 
+## Features
+
+- **Auto token refresh**: Access tokens are automatically refreshed when expired. Long-running processes don't need to re-login manually.
+- **Device caching**: Device list is cached for 24 hours. Cache auto-clears when expired.
+- **Quiet mode**: Pass `{ quiet: true }` to suppress log messages.
+- **Verify & retry**: Plug/switch commands verify state and retry up to 3 times by default.
+
 ## Environment Variables
 
 ```
