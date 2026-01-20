@@ -4,5 +4,4 @@ node_modules/
 .tokens.json
 .devices.json
 .DS_Store
-*.log
 .rcs

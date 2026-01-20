@@ -1,9 +1,15 @@
 {
-  "name": "wyzer-api",
+  "name": "@caseman72/wyzer-api",
   "version": "1.0.0",
-  "description": "Simple Wyze API client",
+  "description": "Simple Wyze API client for smart plugs, switches, and thermostats",
   "main": "index.js",
   "type": "module",
+  "files": [
+    "index.js",
+    "lib/*.js",
+    "README.md",
+    ".env.local.example"
+  ],
   "scripts": {
     "test": "node examples/test-all.js",
     "lint": "eslint index.js lib/*.js examples/*.js",
@@ -12,10 +18,23 @@
   "keywords": [
     "wyze",
     "api",
-    "smart-home"
+    "smart-home",
+    "iot",
+    "plug",
+    "switch",
+    "thermostat",
+    "home-automation"
   ],
-  "author": "",
+  "author": "Casey Manion <casey@manion.com>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/caseman72/wyzer-api.git"
+  },
+  "bugs": {
+    "url": "https://github.com/caseman72/wyzer-api/issues"
+  },
+  "homepage": "https://github.com/caseman72/wyzer-api#readme",
   "dependencies": {
     "dotenv": "^16.3.1"
   },
