@@ -1,3 +1,6 @@
+import { existsSync } from "fs";
+import { homedir } from "os";
+import { join } from "path";
 import { config } from "dotenv";
 import { login, refreshToken } from "./lib/auth.js";
 import { loadTokens, saveTokens, isTokenExpired, decodeJwt } from "./lib/tokens.js";
@@ -8,8 +11,17 @@ import * as plugs from "./lib/plugs.js";
 import * as switches from "./lib/switches.js";
 import * as thermostat from "./lib/thermostat.js";
 
-// Load .env.local
-config({ path: ".env.local" });
+// Load .env.local from first available location
+const envPaths = [
+  ".env.local",
+  join(homedir(), ".config", "wyze", ".env.local"),
+  join(homedir(), ".wyze.env.local")
+];
+
+const envPath = envPaths.find(p => existsSync(p));
+if (envPath) {
+  config({ path: envPath });
+}
 
 class Wyzer {
   constructor(options = {}) {
@@ -69,7 +81,7 @@ class Wyzer {
         this.log("Access token expired, refreshing...");
         try {
           this.refreshToken = cached.refreshToken;
-          const result = await this.refresh();
+          await this.refresh();
           this.userId = decodeJwt(this.accessToken)?.user_id;
           saveTokens(this.accessToken, this.refreshToken, this.tokenPath);
           return { accessToken: this.accessToken, refreshToken: this.refreshToken, userId: this.userId };
