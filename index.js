@@ -14,7 +14,7 @@ import * as thermostat from "./lib/thermostat.js";
 // Load .env.local from first available location
 const envPaths = [
   ".env.local",
-  join(homedir(), ".config", "wyze", ".env.local"),
+  join(homedir(), ".config", "wyzer-api", ".env.local"),
   join(homedir(), ".wyze.env.local")
 ];
 
