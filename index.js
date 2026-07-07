@@ -10,6 +10,7 @@ import { loadDeviceCache, saveDeviceCache, clearDeviceCache, getCacheAge } from 
 import * as plugs from "./lib/plugs.js";
 import * as switches from "./lib/switches.js";
 import * as thermostat from "./lib/thermostat.js";
+import * as purifier from "./lib/purifier.js";
 
 // Load .env.local from first available location
 const envPaths = [
@@ -353,6 +354,81 @@ class Wyzer {
   async setFanMode(deviceMac, mode, deviceModel) {
     await this.ensureValidToken();
     return thermostat.setFanMode(this.accessToken, deviceMac, mode, deviceModel);
+  }
+
+  // Air Purifier
+  // Power on/off uses the same legacy P3 property as plugs
+  // Options: { verify: true, throwOnFail: false, retries: 3 }
+  async purifierOn(deviceMac, deviceModel, options = {}) {
+    await this.ensureValidToken();
+    const { verify = true, throwOnFail = false, retries = 3 } = options;
+
+    if (!verify || retries === 0) {
+      return purifier.turnOn(this.accessToken, deviceMac, deviceModel);
+    }
+
+    const success = await this._retryWithVerify(
+      () => purifier.turnOn(this.accessToken, deviceMac, deviceModel),
+      () => this.isPurifierOn(deviceMac, deviceModel),
+      retries
+    );
+
+    if (!success && throwOnFail) {
+      throw new Error(`Failed to turn on purifier ${deviceMac} after ${retries} attempts`);
+    }
+    return success;
+  }
+
+  async purifierOff(deviceMac, deviceModel, options = {}) {
+    await this.ensureValidToken();
+    const { verify = true, throwOnFail = false, retries = 3 } = options;
+
+    if (!verify || retries === 0) {
+      return purifier.turnOff(this.accessToken, deviceMac, deviceModel);
+    }
+
+    const success = await this._retryWithVerify(
+      () => purifier.turnOff(this.accessToken, deviceMac, deviceModel),
+      () => this.isPurifierOff(deviceMac, deviceModel),
+      retries
+    );
+
+    if (!success && throwOnFail) {
+      throw new Error(`Failed to turn off purifier ${deviceMac} after ${retries} attempts`);
+    }
+    return success;
+  }
+
+  async isPurifierOn(deviceMac, deviceModel) {
+    await this.ensureValidToken();
+    const state = await purifier.getState(this.accessToken, deviceMac, deviceModel);
+    return state.switch_state;
+  }
+
+  async isPurifierOff(deviceMac, deviceModel) {
+    await this.ensureValidToken();
+    const state = await purifier.getState(this.accessToken, deviceMac, deviceModel);
+    return !state.switch_state;
+  }
+
+  async getPurifier(deviceMac) {
+    await this.ensureValidToken();
+    return purifier.getData(this.accessToken, deviceMac);
+  }
+
+  async getPurifierAqi(deviceMac, deviceModel) {
+    await this.ensureValidToken();
+    return purifier.getAqi(this.accessToken, deviceMac, deviceModel);
+  }
+
+  async getPurifierState(deviceMac, deviceModel) {
+    await this.ensureValidToken();
+    return purifier.getState(this.accessToken, deviceMac, deviceModel);
+  }
+
+  async setPurifierFanMode(deviceMac, mode, deviceModel) {
+    await this.ensureValidToken();
+    return purifier.setFanMode(this.accessToken, deviceMac, mode, deviceModel);
   }
 
   // Rate limit status

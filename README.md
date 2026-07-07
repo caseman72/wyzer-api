@@ -1,6 +1,6 @@
 # wyzer-api
 
-Wyze API client for Node.js. Control plugs, switches, and thermostats.
+Wyze API client for Node.js. Control plugs, switches, thermostats, and air purifiers.
 
 ## Setup
 
@@ -40,6 +40,13 @@ await wyze.setHeatTemp(deviceMac, 68, deviceModel);
 await wyze.setCoolTemp(deviceMac, 72, deviceModel);
 await wyze.setThermostatMode(deviceMac, "auto", deviceModel);
 await wyze.setFanMode(deviceMac, "auto", deviceModel);
+
+// Air purifier
+const info = await wyze.getPurifier(deviceMac);        // { fanMode, connected, sn, wifiMac, appVersion }
+const aqi = await wyze.getPurifierAqi(deviceMac);      // current AQI (number)
+await wyze.setPurifierFanMode(deviceMac, "sleep");     // auto, sleep, min, mid, max, turbo
+await wyze.purifierOn(deviceMac);
+await wyze.purifierOff(deviceMac);
 ```
 
 ## Features

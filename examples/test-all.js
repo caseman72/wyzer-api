@@ -62,6 +62,27 @@ async function main() {
     console.log("   Done!\n");
   }
 
+  // 6. Test air purifier
+  console.log("6. Getting air purifier data (Sunroom)...");
+  const ap = await wyze.getDevice("Sunroom");
+  if (ap && ap.product_model === "CO_AP1") {
+    console.log("   Found purifier:", ap.mac);
+    const info = await wyze.getPurifier(ap.mac);
+    console.log("   Fan mode:", info.fanMode);
+    console.log("   Connected:", info.connected);
+    const aqi = await wyze.getPurifierAqi(ap.mac);
+    console.log("   AQI:", aqi);
+    const isOn = await wyze.isPurifierOn(ap.mac);
+    console.log("   Power:", isOn ? "on" : "off");
+    console.log("   Setting fan mode to sleep...");
+    await wyze.setPurifierFanMode(ap.mac, "sleep");
+    await sleep(2000);
+    console.log("   Fan mode now:", (await wyze.getPurifier(ap.mac)).fanMode);
+    console.log("   Restoring fan mode to", info.fanMode, "...");
+    await wyze.setPurifierFanMode(ap.mac, info.fanMode);
+    console.log("   Done!\n");
+  }
+
   console.log("=== All tests passed! ===");
 }
 
